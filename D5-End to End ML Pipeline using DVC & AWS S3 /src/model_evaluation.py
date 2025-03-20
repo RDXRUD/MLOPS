@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import precision_score, recall_score, roc_auc_score, accuracy_score
 import json
+import yaml
+from dvclive import Live
 
 log_dir='logs'
 
@@ -25,6 +27,22 @@ console_handler.setFormatter(formatter)
 
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
+
+def load_params(params_path:str)->dict:
+    try:
+        with open(params_path,"r") as file:
+            params=yaml.safe_load(file)
+        logger.debug("Parameters retrived from %s",params)
+        return params
+    except FileNotFoundError:
+        logger.error("File not found: %s", params_path)
+        raise
+    except yaml.YAMLError as e:
+        logger.error("YAML error: %s",e)
+        raise
+    except Exception as e:
+        logger.error("Unexpected error: %s",e)
+        raise
 
 def load_model(file_path:str):
     try:
@@ -56,7 +74,7 @@ def load_data(file_path:str)->pd.DataFrame:
     except Exception as e:
         logger.error("Unexpected error occur while loading data: %s",e)
 
-def evaluate_model(clf,X_test:np.ndarray,y_test:np.ndarray)->dict:
+def evaluate_model(clf,X_test:np.ndarray,y_test:np.ndarray,params:dict)->dict:
     try:
         y_pred=clf.predict(X_test)
         y_pred_proba=clf.predict_proba(X_test)[:, 1]
@@ -74,6 +92,14 @@ def evaluate_model(clf,X_test:np.ndarray,y_test:np.ndarray)->dict:
         }
         
         logger.debug("Model evaluation metrics calculated")
+        
+        with Live(save_dvc_exp=True) as live:
+            live.log_metric("accuracy",accuracy)
+            live.log_metric("precision",precision)
+            live.log_metric("recall",recall)
+            live.log_params(params)
+        
+        logger.debug("Save to dvc live")
         
         return metrics_dict
         
@@ -96,13 +122,21 @@ def save_metrices(metrices:dict,file_path:str)->None:
     
 def main():
     try:
+        params=load_params(params_path="params.yaml")
         clf=load_model("./model/model.pkl")
         test_data=load_data("./data/processed/test_tfidf.csv")
         
         X_test=test_data.iloc[:, :-1].values
         y_test=test_data.iloc[:,-1].values
 
-        metrices=evaluate_model(clf,X_test,y_test)
+        metrices=evaluate_model(clf,X_test,y_test,params)   
+        
+        # with Live(save_dvc_exp=True) as live:
+        #     live.log_metric('accuracy', accuracy_score(y_test, y_test))
+        #     live.log_metric('precision', precision_score(y_test, y_test))
+        #     live.log_metric('recall', recall_score(y_test, y_test))
+
+        #     live.log_params(params) 
         
         save_metrices(metrices,'reports/metrics.json')
     
