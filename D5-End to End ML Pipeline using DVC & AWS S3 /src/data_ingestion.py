@@ -66,7 +66,7 @@ def save_data(train_data:pd.DataFrame,test_data:pd.DataFrame,data_path:str)->Non
 
 def main():
     try:
-        test_size=0.2
+        test_size=0.21
         # data_path="https://raw.githubusercontent.com/RDXRUD/Datasets/refs/heads/main/MLOPS/D5/spam.csv"
         data_path="https://raw.githubusercontent.com/RDXRUD/MLOPS/refs/heads/D5/D5-End%20to%20End%20ML%20Pipeline%20using%20DVC%20%26%20AWS%20S3%20/experiments/spam.csv"
         df=load_data(data_url=data_path)
